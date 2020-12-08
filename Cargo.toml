@@ -1,0 +1,14 @@
+[package]
+name = "algo"
+version = "0.1.0"
+authors = ["jlikhuva <jlikhuva@stanford.edu>"]
+edition = "2018"
+
+
+[dependencies]
+rand = "0.7.3"
+bitvec = "0.19"
+twox-hash = "1.6.0"
+lazy_static = "1.4.0"
+anyhow = "1.0"
+num-traits = "0.2.14"
