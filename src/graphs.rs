@@ -6,46 +6,71 @@
 //! of the node. Thus, it is assumed that the key can be used to refer
 //! to some value external to the graph. All edges in the graph have the same
 //! type - either directed or undirected.
+use std::{
+    collections::{HashMap, LinkedList},
+    hash::Hash,
+};
 
-use std::collections::{HashMap, LinkedList};
-
-#[derive(Debug, PartialOrd, PartialEq)]
-pub enum EdgeKind {
-    Directed,
-    Undirected,
-}
-
-/// The list of nodes in the entire graph
-type NodeList<T> = Vec<Node<T>>;
-
-/// A path in the graph is a sequence of nodes (their keys)
-/// ordered from src to dest
 pub type GraphPath<T> = Vec<T>;
 
 #[derive(Debug)]
-pub struct Graph<NodeType: Ord + Copy> {
+struct Node<NodeType: Ord> {
+    /// The id of this node
+    key: NodeType,
+
+    /// The list of other nodes in the graph to which
+    /// this node has a direct connection
+    neighbors: Option<LinkedList<usize>>,
+}
+
+impl<NodeType: Ord> Node<NodeType> {
+    pub fn new(key: NodeType) -> Self {
+        Node {
+            key,
+            neighbors: None,
+        }
+    }
+}
+#[derive(Debug)]
+pub enum Edge {
+    /// An undirected, unweighted edge
+    /// (left_node_idx, right_node_idx)
+    UnweightedUndirected(usize, usize),
+
+    /// An undirected, weighted edge
+    /// (left_node_idx, right_node_idx, weight)
+    WeightedUndirected(usize, usize, f32),
+
+    /// A directed, unweighted edge
+    /// (src_node_idx, dest_node_idx)
+    UnweightedDirected(usize, usize),
+
+    /// A weighted, directed edge
+    /// (src_node_idx, dest_node_idx, weight)
+    WeightedDirected(usize, usize, f32),
+}
+
+#[derive(Debug)]
+pub struct Graph<NodeType: Ord + Hash + Clone> {
     /// We keep all the nodes in the graph in a single list
-    nodes: Option<NodeList<NodeType>>,
+    nodes: Option<Vec<Node<NodeType>>>,
 
     /// A map from the id of a node to the index at which
     /// it is stored in the list of nodes
     nodes_mapper: Option<HashMap<NodeType, usize>>,
 
     /// Similarly, we keed all our edges in a single list
+    /// is this necessary?
     edges: Option<Vec<Edge>>,
-
-    /// A graph can either be directed or undirected
-    kind: EdgeKind,
 }
 
-impl<NodeType: Ord + Copy> Graph<NodeType> {
+impl<NodeType: Ord + Hash + Clone> Graph<NodeType> {
     /// Create a new graph instance of the type
     /// `graph_kind`
-    pub fn new(graph_kind: EdgeKind) -> Self {
+    pub fn new() -> Self {
         Graph {
             nodes: None,
             edges: None,
-            kind: graph_kind,
             nodes_mapper: None,
         }
     }
@@ -54,8 +79,28 @@ impl<NodeType: Ord + Copy> Graph<NodeType> {
     /// already contains a node with that id, this method will return an
     /// error (It will not insert the duplicate node)
     pub fn add_node(&mut self, node_id: NodeType) {
-        // TODO: Result and Error Object
-        todo! {}
+        let new_node = Node::new(node_id.clone());
+        match &mut self.nodes_mapper {
+            None => {
+                self.nodes = Some(vec![new_node]);
+                let mut mapper = HashMap::new();
+                mapper.insert(node_id, 0);
+                self.nodes_mapper = Some(mapper);
+            }
+            Some(mapper) => {
+                match mapper.get(&node_id) {
+                    Some(_idx) => {
+                        // Duplicate node Error
+                    }
+                    None => {
+                        let nodes = self.nodes.as_mut().unwrap();
+                        let idx = nodes.len();
+                        nodes.push(new_node);
+                        mapper.insert(node_id, idx);
+                    }
+                }
+            }
+        }
     }
 
     /// Add an edge between the two nodes. If either one of the nodes is
@@ -130,60 +175,5 @@ impl<NodeType: Ord + Copy> Graph<NodeType> {
 
     pub fn relabel_to_front(&self, s: NodeType, t: NodeType) {
         todo!()
-    }
-}
-
-#[derive(Debug)]
-struct Node<NodeType: Ord> {
-    /// The id of this node
-    key: NodeType,
-
-    /// The list of other nodes in the graph to which
-    /// this node has a direct connection
-    neighbors: Option<LinkedList<usize>>,
-}
-
-impl<NodeType: Ord> Node<NodeType> {
-    pub fn new(key: NodeType) -> Self {
-        Node {
-            key,
-            neighbors: None,
-        }
-    }
-}
-
-#[derive(Debug)]
-struct Edge {
-    /// The left end of this edge. This is an index into `NodeMap<T>` the global
-    /// list of vertices. If this Edge is directed, this is assumed to be the
-    /// source node, that is this vertex is from u to v
-    u: usize,
-
-    /// The right end of this edge. This is an index into `NodeMap<T>` the global
-    /// list of vertices. If this Edge is directed, this is assumed to be the
-    /// destination node, that is this vertex is from u to v
-    v: usize,
-
-    /// Whether this edge is directed or undirected. Note that
-    /// most graph algorithms assume that all edges have a uniform
-    /// EdgeKind. That is either the graph is directed or undirected
-    kind: EdgeKind,
-
-    /// This value is used if we are dealing with a weighted graph.
-    weight: Option<f64>,
-}
-
-impl Edge {
-    pub fn new(u: usize, v: usize, kind: EdgeKind) -> Self {
-        Edge {
-            u,
-            v,
-            kind,
-            weight: None,
-        }
-    }
-
-    pub fn set_weight(&mut self, weight: f64) {
-        self.weight = Some(weight)
     }
 }

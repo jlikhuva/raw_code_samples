@@ -9,7 +9,7 @@ struct BstNode<Key: Ord, Value> {
     child_type: Option<ChildType>,
 }
 
-#[derive(Debug, Clone, Copy, PartialOrd, Eq, PartialEq)]
+#[derive(Debug, Clone, PartialOrd, Eq, PartialEq)]
 enum ChildType {
     Right,
     Left,
@@ -122,11 +122,8 @@ impl<Key: Ord, Value> BST<Key, Value> {
                         let return_value = Self::swap_remove(elements, delete_idx);
                         if self.root_index.is_none() {
                             // Assert that the tree should be empty any time we descend into this path
-                            match &self.root {
-                                None => {}
-                                Some(elements) => {
-                                    assert_eq!(elements.len(), 0)
-                                }
+                            if let Some(elements) = &self.root {
+                                debug_assert!(elements.len() == 0)
                             }
                             self.root = None;
                         }
@@ -145,7 +142,7 @@ impl<Key: Ord, Value> BST<Key, Value> {
     fn swap_remove(elements: &mut Vec<BstNode<Key, Value>>, delete_idx: usize) -> Option<Value> {
         let deleted_node = elements.swap_remove(delete_idx);
         if delete_idx < elements.len() {
-            // After the call to swap_remove, dlete_idx now holds the node that was the
+            // After the call to swap_remove, delete_idx now holds the node that was the
             // last node. We now need to inform its parents and children that it was
             // moved.
             if let Some(left_child_idx) = elements[delete_idx].left {
@@ -181,7 +178,7 @@ impl<Key: Ord, Value> BST<Key, Value> {
         };
         if let Some(child_idx) = delete_node_child {
             elements[child_idx].parent = elements[delete_idx].parent;
-            elements[child_idx].child_type = elements[delete_idx].child_type;
+            elements[child_idx].child_type = elements[delete_idx].child_type.clone();
         }
         match elements[delete_idx].parent {
             Some(parent_idx) => match elements[delete_idx].child_type {

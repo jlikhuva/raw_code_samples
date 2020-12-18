@@ -4,6 +4,7 @@
 //! queries about the set of objects.
 
 use num_traits::Num;
+use std::ops::Sub;
 #[derive(Debug)]
 pub enum Direction {
     Clockwise,
@@ -37,7 +38,8 @@ pub enum Turn {
 #[derive(Debug)]
 pub enum ConvexHullMethod {
     Incremental,
-    PruneAndSearch,
+    /// PruneAndSearch,
+    KirkpatrickSeidel,
     GrahamScan,
     JarvisMarch,
 }
@@ -52,6 +54,17 @@ pub struct Point<T: Num> {
 /// A group of points
 #[derive(Debug)]
 pub struct PointCollection<T: Num>(Vec<Point<T>>);
+
+impl<T: Num> Sub for Point<T> {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self {
+        Self {
+            x: self.x - other.x,
+            y: self.y - other.y,
+        }
+    }
+}
 
 impl<T: Num + Copy> Point<T> {
     /// Create a new point with the provided x, and y coordinates

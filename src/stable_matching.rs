@@ -23,14 +23,17 @@ impl PartialEq for EngagementTuple {
         self.0 == other.0
     }
 }
+
+type ProposerId = String;
+type AcceptorId = String;
 #[derive(Debug)]
 pub struct Acceptor {
     /// The name of this acceptor
-    id: String,
+    id: AcceptorId,
 
     /// When a proposal comes in, we need to quickly identify how
     /// we ranked the proposer.
-    preference_map: HashMap<String, u32>,
+    preference_map: HashMap<ProposerId, u32>,
 
     /// We accept proposals, provisionally,until
     /// capacity is exhausted. Afterward, if we receive a
@@ -95,7 +98,7 @@ pub enum ProposalResult {
 #[derive(Debug)]
 pub struct Proposer<'gale_shapely> {
     /// The name of this proposer.
-    id: String,
+    id: ProposerId,
 
     /// The proposers go through their preference list
     /// from top to bottom, proposing to each of their
@@ -130,11 +133,11 @@ type StableMatchings = HashMap<String, String>;
 
 #[derive(Debug)]
 pub struct DefferedAcceptance<'gale_shapely> {
-    proposers: HashMap<String, Proposer<'gale_shapely>>,
-    acceptors: HashMap<String, Acceptor>,
+    proposers: HashMap<ProposerId, Proposer<'gale_shapely>>,
+    acceptors: HashMap<AcceptorId, Acceptor>,
 
     /// The set of the String IDs of proposers that are not yet engaged
-    unmatched_proposers: HashSet<String>,
+    unmatched_proposers: HashSet<ProposerId>,
 }
 
 impl<'gale_shapely> DefferedAcceptance<'gale_shapely> {
@@ -151,8 +154,8 @@ impl<'gale_shapely> DefferedAcceptance<'gale_shapely> {
     /// a proposer can only rank an aceptor and vice versa. Using the type system,
     /// this could be checked by the compiler.
     pub fn new(
-        proposer_ids: HashSet<String>,
-        acceptor_ids: HashSet<String>,
+        proposer_ids: HashSet<ProposerId>,
+        acceptor_ids: HashSet<AcceptorId>,
         rankings: &'gale_shapely HashMap<String, Vec<String>>,
     ) -> Self {
         let proposers = Self::create_proposers(&proposer_ids, rankings);

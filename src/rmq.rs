@@ -13,55 +13,11 @@
 //! answer for S. Finally, on each of the partitions, it precomputes
 //! RMQ values for each possible range, using Cartesian tree numbers to avoid
 //! recomputing values for blocks that share the same answers.
-use lazy_static::lazy_static;
+
 use std::collections::{HashMap, LinkedList as Stack};
 
 /// Each our our blocks will be of size 64
-static MAX_BLOCK_SIZE: usize = 4;
-
-/// Enum to aid in bit-level binary search
-enum Bits {
-    Top32(u64),
-    Bot32(u64),
-    Top16(u64),
-    Bot16(u64),
-    Top8(u64),
-    Bot8(u64),
-    Top4(u64),
-    Bot4(u64),
-    Top2(u64),
-    Bot2(u64),
-    Top1(u64),
-    Bot1(u64),
-}
-
-lazy_static! {
-    /// Bit masks that allow us to do bit level binary
-    /// search on an unsigned 64 bit number in order to
-    /// figure out the index of the most significant bit
-    static ref MASKS: HashMap<&'static str, u64> = {
-        let mut map = HashMap::new();
-        map.insert(
-            "top32",
-            0b11111111_11111111_11111111_11111111_00000000_00000000_00000000_00000000,
-        );
-        map.insert(
-            "bot32",
-            0b00000000_00000000_00000000_00000000_11111111_11111111_11111111_11111111,
-        );
-        map.insert("top16", 0b11111111_11111111_00000000_00000000);
-        map.insert("bot16", 0b00000000_00000000_11111111_11111111);
-        map.insert("top8", 0b11111111_00000000);
-        map.insert("bot8", 0b00000000_11111111);
-        map.insert("top4", 0b1111_0000);
-        map.insert("bot4", 0b0000_1111);
-        map.insert("bot2", 0b00_11);
-        map.insert("top2", 0b11_00);
-        map.insert("top1", 0b10);
-        map.insert("bot1", 0b01);
-        map
-    };
-}
+static MAX_BLOCK_SIZE: usize = 64;
 
 /// A range in our underlying array. This is assumed to be
 /// zero indexed. For example, Range(2, 5) should represent
@@ -74,6 +30,12 @@ pub struct Range {
 
     /// The ending index j.
     end: usize,
+}
+
+impl Range {
+    pub fn new(i: usize, j: usize) -> Self {
+        Range { start: i, end: j }
+    }
 }
 #[derive(Debug)]
 struct CartesianTreeNode {
@@ -107,7 +69,7 @@ impl CartesianTreeNode {
 type SparseTableIndex = (usize, usize);
 
 /// A table mapping powes of 2 k = (0, 1, ...) such that
-/// 2^k fits withing an underlying array to precomputed RMQ
+/// 2 << k fits withing an underlying array to precomputed RMQ
 /// answers in intervals of length k.
 type SparseTable = HashMap<SparseTableIndex, HashMap<Range, InBlockOffset>>;
 
@@ -148,11 +110,6 @@ impl InBlockOffset {
 /// the precomputed RMQ answers in that range.
 type BlockLevelRMQ = HashMap<u128, HashMap<Range, InBlockOffset>>;
 
-impl Range {
-    pub fn new(i: usize, j: usize) -> Self {
-        Range { start: i, end: j }
-    }
-}
 #[derive(Debug)]
 pub struct FischerHeunRMQ<T: PartialOrd + Copy> {
     /// This is the array that we are building the
@@ -176,6 +133,10 @@ pub struct FischerHeunRMQ<T: PartialOrd + Copy> {
     /// A cache of each block's cartesian tree number so that we
     /// dont have to compute them at query time again
     cartesian_number_cache: HashMap<usize, u128>,
+
+    /// A precomputed list of MSB values for a 16 bit number. We use this to
+    /// speed up msb checks
+    msb_16: [u8; 1 << 16],
 }
 
 impl<T: Ord + Copy> FischerHeunRMQ<T> {
@@ -185,20 +146,22 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
     /// of creation, it initializes all the data structures needed
     /// to answer ad hoc range queries
     pub fn new(static_array: Vec<T>) -> Self {
-        let minimums = Self::generate_macro_array(&static_array);
+        let minimums = Self::generate_macro_array(&static_array, MAX_BLOCK_SIZE);
         let (block_level_rmq, cartesian_number_cache) =
-            Self::compute_cached_dense_tables(&static_array);
+            Self::compute_cached_dense_tables(&static_array, MAX_BLOCK_SIZE);
         let summary_rmq_sparse_table = Self::compute_sparse_table(&minimums);
+        let msb_16 = Self::compute_msb_values();
         FischerHeunRMQ {
             static_array,
             minimums,
             block_level_rmq,
             summary_rmq_sparse_table,
             cartesian_number_cache,
+            msb_16,
         }
     }
 
-    /// Returns the smallest value [range.start, range.end] in constant time
+    /// Returns the smallest value in [range.start, range.end] in constant time
     pub fn query(&self, range: Range) -> T {
         let start_block = range.start / MAX_BLOCK_SIZE;
         let end_block = range.end / MAX_BLOCK_SIZE;
@@ -240,130 +203,61 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
     /// whose size is s power of 2), we are able to answer this part of the
     /// query in O(1) as well
     fn get_intermediate_min(&self, range: Range) -> T {
-        let k = self.get_msb(range.end - range.start + 1);
+        let k = Self::get_msb(&self.msb_16, (range.end - range.start) + 1);
         let summary_answers = self
             .summary_rmq_sparse_table
-            .get(&(range.start, 2 ^ k))
+            .get(&(range.start, 1 << k))
             .unwrap();
         let left = Range::new(range.start, range.start + (1 << k) - 1);
-        let right = Range::new(range.end - (2 << k) + 1, range.end);
+        let right = Range::new(range.end - (1 << k) + 1, range.end);
         let left_min = summary_answers.get(&left).unwrap().base_index;
         let right_min = summary_answers.get(&right).unwrap().base_index;
         std::cmp::min(self.static_array[left_min], self.static_array[right_min])
     }
 
-    /// Does bit level binary search to find the most significant bit
-    /// of `n`. This takes O(lg w) where w is the number of bits in usize
-    /// Theroretically speaking, this is not O(1) since w, the word size
-    /// is platform dependent and in general depends on n, the largest
-    /// input we'd like to  represent. It is O(lg lg n). Practically, however
-    /// this is O(1). Even for the largest values of n, O(lg lg n) is a small
-    /// constant factor. On 64 bit platforms this is O(lg 64) = 6 = O(1)
-    fn get_msb(&self, n: usize) -> usize {
-        let top32 = MASKS
-            .get("top32")
-            .and_then(|mask| Some((n as u64 & mask) >> 32))
-            .unwrap();
-        if top32 > 0 {
-            Self::msb_helper(top32, Bits::Top32(32)) as usize
-        } else {
-            let bot32 = n as u64 & MASKS.get("bot32").unwrap();
-            Self::msb_helper(bot32, Bits::Bot32(0)) as usize
-        }
+    /// Finds the index of the most significant bit in the given number.
+    /// n is assumed to be a 64 bit array.
+    fn get_msb(lookup_16: &[u8], n: usize) -> usize {
+        debug_assert!(n != 0);
+        let mask = 0b1111_1111_1111_1111;
+        let bot_16 = lookup_16[n & mask];
+        let lmid_16 = lookup_16[(n >> 16) & mask];
+        let rmid_16 = lookup_16[(n >> 32) & mask];
+        let top_16 = lookup_16[n >> 48];
+        let mut val = bot_16;
+        val += if lmid_16 != 0 { lmid_16 + 16 } else { lmid_16 };
+        val += if rmid_16 != 0 { rmid_16 + 32 } else { rmid_16 };
+        val += if top_16 != 0 { top_16 + 48 } else { top_16 };
+        (val - 1) as usize
     }
 
-    // fn get_bits_in_portion(n: usize, upper: &'static str, lower: &'static str,  k: u64, count: u64) -> u64 {
-    //     let top = MASKS
-    //         .get(upper)
-    //         .and_then(|mask| Some((n as u64 & mask) >> k))
-    //         .unwrap();
-    //     if top > 0 {
-    //         Self::msb_helper(top, Bits::Top16(count + k))
-    //     } else {
-    //         let bot = n as u64 & MASKS.get(lower).unwrap();
-    //         Self::msb_helper(bot, Bits::Bot16(count))
-    //     }
-    // }
-
-    fn msb_helper(n: u64, portion: Bits) -> u64 {
-        match portion {
-            Bits::Top32(l) | Bits::Bot32(l) => {
-                let top16 = MASKS
-                    .get("top16")
-                    .and_then(|mask| Some((n as u64 & mask) >> 16))
-                    .unwrap();
-                if top16 > 0 {
-                    Self::msb_helper(top16, Bits::Top16(l + 16))
-                } else {
-                    let bot16 = n as u64 & MASKS.get("bot16").unwrap();
-                    Self::msb_helper(bot16, Bits::Bot16(l))
-                }
-            }
-            Bits::Top16(l) | Bits::Bot16(l) => {
-                let top8 = MASKS
-                    .get("top8")
-                    .and_then(|mask| Some((n as u64 & mask) >> 8))
-                    .unwrap();
-                if top8 > 0 {
-                    Self::msb_helper(top8, Bits::Top8(l + 8))
-                } else {
-                    let bot8 = n as u64 & MASKS.get("bot8").unwrap();
-                    Self::msb_helper(bot8, Bits::Bot8(l))
-                }
-            }
-            Bits::Top8(l) | Bits::Bot8(l) => {
-                let top4 = MASKS
-                    .get("top4")
-                    .and_then(|mask| Some((n as u64 & mask) >> 4))
-                    .unwrap();
-                if top4 > 0 {
-                    Self::msb_helper(top4, Bits::Top4(l + 4))
-                } else {
-                    let bot4 = n as u64 & MASKS.get("bot4").unwrap();
-                    Self::msb_helper(bot4, Bits::Bot4(l))
-                }
-            }
-            Bits::Top4(l) | Bits::Bot4(l) => {
-                let top2 = MASKS
-                    .get("top2")
-                    .and_then(|mask| Some((n as u64 & mask) >> 4))
-                    .unwrap();
-                if top2 > 0 {
-                    Self::msb_helper(top2, Bits::Top2(l + 4))
-                } else {
-                    let bot2 = n as u64 & MASKS.get("bot2").unwrap();
-                    Self::msb_helper(bot2, Bits::Bot2(l))
-                }
-            }
-            Bits::Top2(l) | Bits::Bot2(l) => {
-                let top1 = MASKS
-                    .get("top1")
-                    .and_then(|mask| Some((n as u64 & mask) >> 2))
-                    .unwrap();
-                if top1 > 0 {
-                    Self::msb_helper(top1, Bits::Top1(l + 2))
-                } else {
-                    let bot1 = n as u64 & MASKS.get("bot1").unwrap();
-                    Self::msb_helper(bot1, Bits::Bot1(l))
-                }
-            }
-            Bits::Top1(l) | Bits::Bot1(l) => {
-                if n == 1 {
-                    l + 1
-                } else {
-                    l
-                }
+    /// Precomputes a lookup table of msb values for all
+    /// 16 bit unsigned integers. This table is used to do
+    /// O(1) msb lookups, using 4 array accesses, when
+    /// computing msb values for unsigned 64 bit integers
+    pub fn compute_msb_values() -> [u8; 1 << 16] {
+        let mut v = [0; 1 << 16];
+        for k in 0..16 {
+            let start = 1 << k;
+            let end = start << 1;
+            for i in start..end {
+                v[i] = k + 1;
             }
         }
+        v
     }
 
     /// Generates the array for min values in each block. The generated
     /// array forms the basis of our 'macro' problem portion of the
     /// method of four russians.
-    pub fn generate_macro_array(static_array: &Vec<T>) -> Vec<T> {
+    ///
+    /// Suppose static_array.len() = 7 and block_size=3
+    /// i = 0, 1, 2, 3, 4, 5, 6
+    /// cur_range = {0, 2}, {3, 5}, {6, 6}
+    pub fn generate_macro_array(static_array: &Vec<T>, block_size: usize) -> Vec<T> {
         let mut minimums = Vec::new();
-        for i in (0..static_array.len()).step_by(MAX_BLOCK_SIZE - 1) {
-            let cur_range = Range::new(i, i + MAX_BLOCK_SIZE - 1);
+        for i in (0..static_array.len()).step_by(block_size) {
+            let cur_range = Range::new(i, i + block_size - 1);
             let cur_min_idx = Self::min_index_in_range(static_array, cur_range);
             minimums.push(static_array[cur_min_idx])
         }
@@ -379,11 +273,11 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
         let array = minimums;
         for i in 0..array.len() {
             let mut k = 0;
-            while 2 ^ k < array.len() {
-                let end_idx = i + (2 ^ k - 1);
+            while 1 << k < array.len() {
+                let end_idx = i + (1 << k) - 1;
                 let range_len = (end_idx - i) + 1;
                 let query_range = Range::new(i, end_idx);
-                let rmq_answers_in_range = Self::compute_rmq_all_ranges(&query_range, array);
+                let rmq_answers_in_range = Self::compute_rmq_all_ranges(array, &query_range);
                 table.insert((i, range_len), rmq_answers_in_range);
                 k += 1;
             }
@@ -398,17 +292,19 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
     /// precomputed dictionary for both.
     pub fn compute_cached_dense_tables(
         static_array: &Vec<T>,
+        block_size: usize,
     ) -> (BlockLevelRMQ, HashMap<usize, u128>) {
         let mut block_level_rmq = HashMap::new();
         let mut cartesian_cache = HashMap::new();
-        for i in (0..static_array.len()).step_by(MAX_BLOCK_SIZE - 1) {
-            let cur_range = Range::new(i, i + MAX_BLOCK_SIZE - 1);
+        for i in (0..static_array.len()).step_by(block_size) {
+            let cur_range = Range::new(i, i + block_size - 1);
+            // todo!(): Last portion
             let cur_number = Self::cartesian_tree_number(&cur_range, static_array);
             cartesian_cache.insert(i, cur_number);
             if block_level_rmq.contains_key(&cur_number) {
                 continue;
             }
-            let rmq = Self::compute_rmq_all_ranges(&cur_range, static_array);
+            let rmq = Self::compute_rmq_all_ranges(static_array, &cur_range);
             block_level_rmq.insert(cur_number, rmq);
         }
         (block_level_rmq, cartesian_cache)
@@ -425,6 +321,8 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
     pub fn cartesian_tree_number(block_range: &Range, static_array: &Vec<T>) -> u128 {
         let mut cartesian_tree_number = 0;
         let mut stack = Stack::<usize>::new();
+        let (end, len) = (block_range.end, static_array.len());
+        let j = if end >= len { len - 1 } else { end };
 
         // Technically, we do not even need to build the certesian tree, all
         // we need to know is the series of stack push and pop operations
@@ -433,7 +331,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
 
         // We initialize each item in the block as its own
         // cartesian tree with no children
-        for i in block_range.start..=block_range.end {
+        for i in block_range.start..=j {
             cartesian_tree.push(CartesianTreeNode::new(i));
         }
 
@@ -443,15 +341,16 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
         // Once we break out of the `pop` loop, we make the item we popped
         // a left child of the new item we are adding. Additionally, we make
         // this new item a right/left child of the item atop the stack
-        for i in block_range.start..=block_range.end {
+        let mut offset_in_number = 0;
+        for i in block_range.start..=j {
             let mut last_popped = None;
-            let mut offset_in_number = 0;
             loop {
                 match stack.front() {
                     None => break,
                     Some(&top_node_index) => {
                         if static_array[top_node_index] < static_array[i] {
-                            cartesian_tree[top_node_index].index_of_right_child = Some(i);
+                            cartesian_tree[top_node_index - block_range.start]
+                                .index_of_right_child = Some(i);
                             break;
                         }
                         last_popped = stack.pop_front();
@@ -460,7 +359,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
                 }
             }
             if let Some(last_popped_idx) = last_popped {
-                cartesian_tree[i].index_of_left_child = Some(last_popped_idx);
+                cartesian_tree[i - block_range.start].index_of_left_child = Some(last_popped_idx);
             }
             stack.push_front(i);
             offset_in_number += 1;
@@ -474,7 +373,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
 
     /// Return the index of the minimal element in
     /// the given range.
-    fn min_index_in_range(static_array: &Vec<T>, range: Range) -> usize {
+    pub fn min_index_in_range(static_array: &Vec<T>, range: Range) -> usize {
         let end = range.end;
         let len = static_array.len();
         let cur_block = if end < len {
@@ -482,7 +381,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
         } else {
             &static_array[range.start..]
         };
-        cur_block
+        let inblock_min_idx = cur_block
             .iter()
             .enumerate()
             .fold(0, |cur_min_idx, (cur_idx, &x)| {
@@ -490,17 +389,20 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
                     std::cmp::Ordering::Less => cur_idx,
                     _ => cur_min_idx,
                 }
-            })
+            });
+        range.start + inblock_min_idx
     }
 
     /// This procedure is used to compute the answers to all
-    /// n^2 RMQ queries that can ever be asked in the range passed in.
+    /// n << 2 RMQ queries that can ever be asked in the range passed in.
     /// This procedure is used to pre-compute the RMQ values on
     /// individual blocks. It returns a mapping from a Range
     /// to the index of the minimal value in that range
-    pub fn compute_rmq_all_ranges(block: &Range, array: &Vec<T>) -> HashMap<Range, InBlockOffset> {
+    pub fn compute_rmq_all_ranges(array: &Vec<T>, block: &Range) -> HashMap<Range, InBlockOffset> {
         let mut all_range_answers = HashMap::new();
-        let (i, j) = (block.start, block.end);
+        let i = block.start;
+        let (end, len) = (block.end, array.len());
+        let j = if end >= len { len - 1 } else { end };
         for start_index in i..=j {
             for end_index in start_index..=j {
                 if start_index == end_index {
@@ -531,11 +433,88 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
 #[cfg(test)]
 mod test {
     #[test]
-    fn test_cartesian_tree() {
+    fn get_msb() {
+        use super::FischerHeunRMQ;
+        let v = FischerHeunRMQ::<u64>::compute_msb_values();
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, 16);
+        assert_eq!(4, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, 256);
+        assert_eq!(8, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, 873);
+        assert_eq!(9, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, 25);
+        assert_eq!(4, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, 91);
+        assert_eq!(6, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, 255);
+        assert_eq!(7, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, 1);
+        assert_eq!(0, msb);
+        let base: usize = 2;
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, base.pow(63));
+        assert_eq!(63, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, base.pow(32));
+        assert_eq!(32, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, base.pow(16));
+        assert_eq!(16, msb);
+        let msb = FischerHeunRMQ::<u64>::get_msb(&v, 1 << 18);
+        assert_eq!(18, msb);
+    }
+
+    #[test]
+    fn min_index_in_range() {
         use super::{FischerHeunRMQ, Range};
-        let array = vec![2, 43, 45, 12, 34, 54, 6, 7, 1, 2, 89, 89, 78, 2, 3, 5, 62];
-        let last = array.len() - 1;
-        let rmq = FischerHeunRMQ::new(array);
-        let ans = rmq.query(Range::new(0, last));
+        let v = vec![2, 32, 45, 64, 21, 78, 36, 27, 8, 21];
+        let min_idx = FischerHeunRMQ::<u64>::min_index_in_range(&v, Range::new(0, 311));
+        assert_eq!(2, v[min_idx])
+    }
+
+    #[test]
+    fn generate_macro_array() {
+        use super::FischerHeunRMQ;
+        let v = vec![2, 32, 45, 64, 21, 78, 36, 27, 8, 21];
+        let mins = FischerHeunRMQ::<u64>::generate_macro_array(&v, 4);
+        assert_eq!(vec![2, 21, 8], mins)
+    }
+
+    #[test]
+    fn compute_rmq_all_ranges() {
+        use super::{FischerHeunRMQ, Range};
+        let v = vec![2, 32, 45, 64, 21, 78, 36, 27, 8, 21];
+        let ans = FischerHeunRMQ::<u64>::compute_rmq_all_ranges(&v, &Range::new(0, 9));
+        assert_eq!(ans.get(&Range::new(0, 5)).unwrap().base_index, 0);
+        assert_eq!(ans.get(&Range::new(1, 5)).unwrap().base_index, 4);
+        assert_eq!(ans.get(&Range::new(7, 9)).unwrap().base_index, 8);
+    }
+
+    #[test]
+    fn compute_sparse_table() {
+        use super::{FischerHeunRMQ, Range};
+        let v = vec![2, 32, 45, 64, 21, 78, 36, 27, 8, 21, 1, 34, 43];
+        let mins = FischerHeunRMQ::<u64>::generate_macro_array(&v, 3);
+        assert_eq!(vec![2, 21, 8, 1, 43], mins);
+        let sparse = FischerHeunRMQ::<u64>::compute_sparse_table(&mins);
+        println!("{:?}", sparse);
+        todo!()
+    }
+
+    #[test]
+    fn cartesian_tree() {
+        use super::{FischerHeunRMQ, Range};
+        let v = vec![2, 32, 45, 64, 21, 78, 36, 27, 8, 21, 1, 34, 43];
+        todo!()
+    }
+
+    #[test]
+    fn compute_cached_dense() {
+        todo!()
+    }
+
+    #[test]
+    fn query() {
+        use super::{FischerHeunRMQ, Range};
+        let v = vec![2, 32, 45, 64, 21, 78, 36, 27, 8, 21, 1, 34, 43];
+        let rmq = FischerHeunRMQ::new(v);
+        assert_eq!(rmq.query(Range::new(0, 4)), 2);
     }
 }
