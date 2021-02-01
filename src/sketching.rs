@@ -31,24 +31,24 @@ impl<T> BloomFilter<T> {
 
     pub fn insert(&mut self, item: T) {
         for f in &mut self.hash_functions {
+            let mut hasher = f.build_hasher();
             unsafe {
-                let mut hasher = f.build_hasher();
                 hasher.write(as_u8_slice(&item));
-                let idx = hasher.finish() % self.buckets.len() as u64;
-                self.buckets.set(idx as usize, true);
             }
+            let idx = hasher.finish() % self.buckets.len() as u64;
+            self.buckets.set(idx as usize, true);
         }
     }
 
     pub fn contains(&mut self, item: T) -> bool {
         for f in &mut self.hash_functions {
+            let mut hasher = f.build_hasher();
             unsafe {
-                let mut hasher = f.build_hasher();
                 hasher.write(as_u8_slice(&item));
-                let idx = hasher.finish() % self.buckets.len() as u64;
-                if !self.buckets.get(idx as usize).unwrap() {
-                    return false;
-                }
+            }
+            let idx = hasher.finish() % self.buckets.len() as u64;
+            if !self.buckets.get(idx as usize).unwrap() {
+                return false;
             }
         }
         true

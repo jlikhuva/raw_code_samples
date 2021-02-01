@@ -101,10 +101,7 @@ fn median_of_medians_select<T: PartialOrd + Copy + std::fmt::Debug>(
 }
 
 static MEDIAN_BLOCK_SIZE: usize = 5;
-fn get_approximate_median<T: PartialOrd + Copy + std::fmt::Debug>(
-    elements: &mut Vec<T>,
-    range: Range,
-) -> T {
+fn get_approximate_median<T: PartialOrd + Copy + std::fmt::Debug>(elements: &mut Vec<T>, range: Range) -> T {
     let mut medians = Vec::new();
     let mut range_start = 0;
     let mut range_end = MEDIAN_BLOCK_SIZE - 1;
@@ -165,10 +162,7 @@ mod test {
         let range_end = v.len() - 1;
         assert_eq!(2, *super::randomized_select(&mut v, (0, range_end), 0));
         assert_eq!(4, *super::randomized_select(&mut v, (0, range_end), 1));
-        assert_eq!(
-            21,
-            *super::randomized_select(&mut v, (0, range_end), range_end)
-        );
+        assert_eq!(21, *super::randomized_select(&mut v, (0, range_end), range_end));
         assert_eq!(9, *super::randomized_select(&mut v, (0, range_end), 6));
         assert_eq!(8, *super::randomized_select(&mut v, (0, range_end), 5));
     }
@@ -177,25 +171,13 @@ mod test {
     fn test_median_of_medians() {
         let mut v = vec![13, 19, 9, 5, 12, 8, 7, 4, 21, 2, 6, 11];
         let range_end = v.len() - 1;
-        assert_eq!(
-            2,
-            *super::median_of_medians_select(&mut v, (0, range_end), 0).0
-        );
-        assert_eq!(
-            4,
-            *super::median_of_medians_select(&mut v, (0, range_end), 1).0
-        );
+        assert_eq!(2, *super::median_of_medians_select(&mut v, (0, range_end), 0).0);
+        assert_eq!(4, *super::median_of_medians_select(&mut v, (0, range_end), 1).0);
         assert_eq!(
             21,
             *super::median_of_medians_select(&mut v, (0, range_end), range_end).0
         );
-        assert_eq!(
-            9,
-            *super::median_of_medians_select(&mut v, (0, range_end), 6).0
-        );
-        assert_eq!(
-            8,
-            *super::median_of_medians_select(&mut v, (0, range_end), 5).0
-        );
+        assert_eq!(9, *super::median_of_medians_select(&mut v, (0, range_end), 6).0);
+        assert_eq!(8, *super::median_of_medians_select(&mut v, (0, range_end), 5).0);
     }
 }

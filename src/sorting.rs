@@ -39,7 +39,7 @@ pub fn insertion_sort<T: PartialOrd + Copy + std::fmt::Debug>(items: &mut Vec<T>
 /// After doing so, we'll realize that L(n) = (n(n-1)/2) + 1
 /// Solving the recurrence involves using Gauss' trick in evaluating
 /// S(n): the sum of integers up to n
-fn intersections(n: i64) -> i64 {
+pub fn intersections(n: i64) -> i64 {
     let mut num_slices = 1;
     for i in 1..n + 1 {
         num_slices = num_slices + i;
@@ -73,7 +73,7 @@ fn primality(i: i64) -> Primality {
 /// can be found by writing n is its binary represntation.
 /// Doing so, and after a few manipulations, you realize that J(n) is simply the
 /// cyclic left shift by 1 of n
-fn josephus_problem(n: i64) -> i64 {
+pub fn josephus_problem(n: i64) -> i64 {
     if n == 1 {
         1
     } else {
@@ -90,7 +90,7 @@ fn josephus_problem(n: i64) -> i64 {
 /// then recursively applies itself on the subarrays
 /// after which it combines the results of the two calls
 /// in a merge step.
-fn merge_sort<T: PartialOrd + Copy + std::fmt::Debug>(a: &mut Vec<T>, begin: usize, end: usize) {
+pub fn merge_sort<T: PartialOrd + Copy + std::fmt::Debug>(a: &mut Vec<T>, begin: usize, end: usize) {
     if begin < end {
         let mid = (begin + end) / 2;
         merge_sort(a, begin, mid);
@@ -149,13 +149,12 @@ type MaxSubArrayResult = (usize, usize, i64);
 /// starting and the ending index of the subarray with the largest
 /// sum in the sequence. We assume that the smallest sequence size
 /// is that containing a single item
-fn maximum_subarray(a: &Vec<i64>, array_begin: usize, array_end: usize) -> MaxSubArrayResult {
+pub fn maximum_subarray(a: &Vec<i64>, array_begin: usize, array_end: usize) -> MaxSubArrayResult {
     if array_begin < array_end {
         let midpoint = (array_begin + array_end) / 2;
         let (array_begin_l, array_end_l, max_l) = maximum_subarray(a, midpoint + 1, array_end);
         let (array_begin_r, array_end_r, max_r) = maximum_subarray(a, array_begin, midpoint);
-        let (array_begin_c, array_end_c, max_c) =
-            max_crossing_subarray(a, array_begin, array_end, midpoint);
+        let (array_begin_c, array_end_c, max_c) = max_crossing_subarray(a, array_begin, array_end, midpoint);
         if max_l >= max_r && max_l >= max_c {
             (array_begin_l, array_end_l, max_l)
         } else if max_r >= max_l && max_r >= max_c {
@@ -168,12 +167,7 @@ fn maximum_subarray(a: &Vec<i64>, array_begin: usize, array_end: usize) -> MaxSu
     }
 }
 
-fn max_crossing_subarray(
-    a: &Vec<i64>,
-    array_begin: usize,
-    array_end: usize,
-    mid: usize,
-) -> MaxSubArrayResult {
+fn max_crossing_subarray(a: &Vec<i64>, array_begin: usize, array_end: usize, mid: usize) -> MaxSubArrayResult {
     let mut left_sum = i64::MIN;
     let mut sum = 0;
     let mut max_left = mid;
@@ -246,11 +240,7 @@ pub fn quick_sort<T: PartialEq + PartialOrd + std::fmt::Debug>(a: &mut Vec<T>, r
     }
 }
 
-pub fn partition<T: PartialEq + PartialOrd>(
-    a: &mut Vec<T>,
-    pivot: usize,
-    range: Range,
-) -> RangeTuple {
+pub fn partition<T: PartialEq + PartialOrd>(a: &mut Vec<T>, pivot: usize, range: Range) -> RangeTuple {
     a.swap(pivot, range.1); // Pivot is now at the end of the current sub_array
     let mut less_than_end = range.0;
     for j in range.0..range.1 {
@@ -369,15 +359,13 @@ fn counting_sort_dates(a: Vec<Date>, on: DateField) -> Vec<Date> {
 #[cfg(test)]
 mod test {
     use super::{
-        counting_sort, insertion_sort, intersections, josephus_problem, maximum_subarray,
-        maximum_subarray_kadane, merge_sort, quick_sort, radix_sort,
+        counting_sort, insertion_sort, intersections, josephus_problem, maximum_subarray, maximum_subarray_kadane,
+        merge_sort, quick_sort, radix_sort,
     };
 
     #[test]
     fn test_max_subarray() {
-        let v = vec![
-            13, -3, -25, 20, -3, -16, -23, 18, 20, -7, 12, -5, -22, 15, -4, 7,
-        ];
+        let v = vec![13, -3, -25, 20, -3, -16, -23, 18, 20, -7, 12, -5, -22, 15, -4, 7];
         let r = maximum_subarray(&v, 0, v.len() - 1);
         assert_eq!(r.0, 7);
         assert_eq!(r.1, 10);
@@ -386,9 +374,7 @@ mod test {
 
     #[test]
     fn test_kadane() {
-        let v = vec![
-            13, -3, -25, 20, -3, -16, -23, 18, 20, -7, 12, -5, -22, 15, -4, 7,
-        ];
+        let v = vec![13, -3, -25, 20, -3, -16, -23, 18, 20, -7, 12, -5, -22, 15, -4, 7];
         let r = maximum_subarray_kadane(&v);
         assert_eq!(r.0, 7);
         assert_eq!(r.1, 10);

@@ -173,10 +173,7 @@ impl<'gale_shapely> DefferedAcceptance<'gale_shapely> {
     ///     capacity: i32,
     ///     provisional_engagements: BinaryHeap<EngagementTuple>,
     /// }
-    fn create_acceptors(
-        ids: &HashSet<String>,
-        rankings: &HashMap<String, Vec<String>>,
-    ) -> HashMap<String, Acceptor> {
+    fn create_acceptors(ids: &HashSet<String>, rankings: &HashMap<String, Vec<String>>) -> HashMap<String, Acceptor> {
         let mut acceptors = HashMap::new();
         for acceptor_id in ids {
             let mut preference_map = HashMap::<String, u32>::new();
@@ -267,10 +264,7 @@ mod test {
     use std::collections::{HashMap, HashSet};
     #[test]
     fn test_gale_shapely() {
-        let proposers: HashSet<String> = (vec!["A", "B", "C", "D"])
-            .iter_mut()
-            .map(|s| s.to_string())
-            .collect();
+        let proposers: HashSet<String> = (vec!["A", "B", "C", "D"]).iter_mut().map(|s| s.to_string()).collect();
         let acceptors: HashSet<String> = (vec!["Alpha", "Beta", "Gamma", "Delta"])
             .iter_mut()
             .map(|s| s.to_string())

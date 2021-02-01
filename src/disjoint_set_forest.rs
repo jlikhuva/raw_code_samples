@@ -72,12 +72,12 @@ impl<T: PartialEq> DSF<T> {
         DSFNodeHandle(idx, PhantomData)
     }
 
-    /// Th union operation has two bcases. if the roots have unequal rank, we make
+    /// Th union operation has two cases. if the roots have unequal rank, we make
     /// the root with lower rank point to the root with the higher rank. The
     /// ranks, however, do not change. If the roots have equal ranke, we choose one
     /// of the roots as the root of the combined set. We also increase
     /// the rank of the new root by 1.
-    pub fn union(&mut self, a: &DSFNodeHandle<T> , b: &DSFNodeHandle<T> ) {
+    pub fn union(&mut self, a: &DSFNodeHandle<T>, b: &DSFNodeHandle<T>) {
         let a_root = Self::find_set_helper(&mut self.forest, a.0);
         let b_root = Self::find_set_helper(&mut self.forest, b.0);
 
@@ -150,7 +150,7 @@ mod test {
         assert_ne!(forest.find_set(&t2), forest.find_set(&t3));
         assert_ne!(forest.find_set(&t3), forest.find_set(&t4));
         assert_ne!(forest.find_set(&t4), forest.find_set(&t5));
-        
+
         // Synonyms for bad
         let t6 = forest.make_set("bad");
         let t7 = forest.make_set("schlecht");
@@ -184,7 +184,7 @@ mod test {
         assert_eq!(forest.find_set(&t6), forest.find_set(&t7));
         assert_eq!(forest.find_set(&t7), forest.find_set(&t8));
         assert_eq!(forest.find_set(&t8), forest.find_set(&t9));
-        
+
         // Assert Disjointness
         assert_ne!(forest.find_set(&t6), forest.find_set(&t1));
         assert_ne!(forest.find_set(&t7), forest.find_set(&t3));

@@ -105,8 +105,7 @@ impl<Key: Ord, Value> BST<Key, Value> {
                                         Self::transplant(elements, succ_idx, ChildType::Right);
                                         elements[succ_idx].right = elements[delete_idx].right;
                                         let delete_node_right_idx = elements[succ_idx].right;
-                                        elements[delete_node_right_idx.unwrap()].parent =
-                                            Some(succ_idx);
+                                        elements[delete_node_right_idx.unwrap()].parent = Some(succ_idx);
                                     }
                                     // if we are here, then succ_idx is actually delete_idx's right child.
                                     Self::transplant(elements, delete_idx, ChildType::Right);
@@ -167,11 +166,7 @@ impl<Key: Ord, Value> BST<Key, Value> {
 
     /// Link a node's parent to one of its children, effectively removing the node from the
     /// tree structure.
-    fn transplant(
-        elements: &mut Vec<BstNode<Key, Value>>,
-        delete_idx: usize,
-        direction: ChildType,
-    ) {
+    fn transplant(elements: &mut Vec<BstNode<Key, Value>>, delete_idx: usize, direction: ChildType) {
         let delete_node_child = match direction {
             ChildType::Left => elements[delete_idx].left,
             ChildType::Right => elements[delete_idx].right,
@@ -246,8 +241,7 @@ impl<Key: Ord, Value> BST<Key, Value> {
                         }
                     } else {
                         let mut ancestor = query_node.parent;
-                        while ancestor.is_some() && query_node.child_type == Some(ChildType::Right)
-                        {
+                        while ancestor.is_some() && query_node.child_type == Some(ChildType::Right) {
                             let ancestor_node = &elements[ancestor.unwrap()];
                             query_node = ancestor_node;
                             ancestor = ancestor_node.parent;
@@ -282,15 +276,7 @@ impl<Key: Ord, Value> BST<Key, Value> {
         }
     }
 
-    pub fn lca(&self) -> Option<&Value> {
-        todo!()
-    }
-
-    fn get_helper(
-        elements: &Vec<BstNode<Key, Value>>,
-        cur_subtree_root: Option<usize>,
-        k: Key,
-    ) -> Option<usize> {
+    fn get_helper(elements: &Vec<BstNode<Key, Value>>, cur_subtree_root: Option<usize>, k: Key) -> Option<usize> {
         match cur_subtree_root {
             None => None,
             Some(subtree_idx) => {

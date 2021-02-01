@@ -97,30 +97,10 @@ impl<AlphabetType: Ord> Ord for HuffmanTreeNode<AlphabetType> {
     fn cmp(&self, other: &Self) -> Ordering {
         use HuffmanTreeNode::{Internal, Leaf};
         match (self, other) {
-            (
-                Leaf { freq: f, .. },
-                Leaf {
-                    freq: other_freq, ..
-                },
-            )
-            | (
-                Leaf { freq: f, .. },
-                Internal {
-                    freq: other_freq, ..
-                },
-            )
-            | (
-                Internal { freq: f, .. },
-                Leaf {
-                    freq: other_freq, ..
-                },
-            )
-            | (
-                Internal { freq: f, .. },
-                Internal {
-                    freq: other_freq, ..
-                },
-            ) => f.cmp(other_freq),
+            (Leaf { freq: f, .. }, Leaf { freq: other_freq, .. })
+            | (Leaf { freq: f, .. }, Internal { freq: other_freq, .. })
+            | (Internal { freq: f, .. }, Leaf { freq: other_freq, .. })
+            | (Internal { freq: f, .. }, Internal { freq: other_freq, .. }) => f.cmp(other_freq),
         }
     }
 }
@@ -135,30 +115,10 @@ impl<AlphabetType: Ord> PartialEq for HuffmanTreeNode<AlphabetType> {
     fn eq(&self, other: &Self) -> bool {
         use HuffmanTreeNode::{Internal, Leaf};
         match (self, other) {
-            (
-                Leaf { freq: f, .. },
-                Leaf {
-                    freq: other_freq, ..
-                },
-            )
-            | (
-                Leaf { freq: f, .. },
-                Internal {
-                    freq: other_freq, ..
-                },
-            )
-            | (
-                Internal { freq: f, .. },
-                Leaf {
-                    freq: other_freq, ..
-                },
-            )
-            | (
-                Internal { freq: f, .. },
-                Internal {
-                    freq: other_freq, ..
-                },
-            ) => f == other_freq,
+            (Leaf { freq: f, .. }, Leaf { freq: other_freq, .. })
+            | (Leaf { freq: f, .. }, Internal { freq: other_freq, .. })
+            | (Internal { freq: f, .. }, Leaf { freq: other_freq, .. })
+            | (Internal { freq: f, .. }, Internal { freq: other_freq, .. }) => f == other_freq,
         }
     }
 }

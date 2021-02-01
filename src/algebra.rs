@@ -153,10 +153,7 @@ fn sieve_of_eratosthenes(x: u64) -> Vec<bool> {
 
 #[cfg(test)]
 mod test {
-    use super::{
-        binary_addition, binary_exp, extended_gcd, naive_exp, naive_gcd, randomize_in_place,
-        GCDArgs,
-    };
+    use super::{binary_addition, binary_exp, extended_gcd, naive_exp, naive_gcd, randomize_in_place, GCDArgs};
 
     #[test]
     fn test_randomize_in_place() {

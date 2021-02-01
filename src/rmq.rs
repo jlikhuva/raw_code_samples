@@ -68,7 +68,7 @@ impl CartesianTreeNode {
 /// length. This length is always a power of 2.
 type SparseTableIndex = (usize, usize);
 
-/// A table mapping powes of 2 k = (0, 1, ...) such that
+/// A table mapping powers of 2 k = (0, 1, ...) such that
 /// 2 << k fits withing an underlying array to precomputed RMQ
 /// answers in intervals of length k.
 type SparseTable = HashMap<SparseTableIndex, HashMap<Range, InBlockOffset>>;
@@ -167,31 +167,31 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
         let end_block = range.end / MAX_BLOCK_SIZE;
         let min_at_ends = self.get_min_value_at_ends(start_block, end_block);
         let min_in_intermediate = self.get_intermediate_min(range);
-        std::cmp::min(min_at_ends, min_in_intermediate)
+        std::cmp::min(min_at_ends.unwrap(), min_in_intermediate) // TODO
     }
 
     /// Finds and returns the smallest value in the blocks that the range passed
     /// into query starts and ends. To do that, it uses the per-block dense
     /// tables that have been precomputed. With this scheme, we are able to answer
     /// this portion of the query in O(1)
-    fn get_min_value_at_ends(&self, start_block: usize, end_block: usize) -> T {
+    fn get_min_value_at_ends(&self, start_block: usize, end_block: usize) -> Option<T> {
         let start_ct_number = *self.cartesian_number_cache.get(&start_block).unwrap();
         let end_ct_number = *self.cartesian_number_cache.get(&end_block).unwrap();
         let start_min = self
             .block_level_rmq
             .get(&start_ct_number)
-            .and_then(|m| m.get(&Range::new(start_block, start_block + MAX_BLOCK_SIZE)))
-            .unwrap();
+            .and_then(|m| m.get(&Range::new(start_block, start_block + MAX_BLOCK_SIZE)));
         let end_min = self
             .block_level_rmq
             .get(&end_ct_number)
-            .and_then(|m| m.get(&Range::new(end_block, end_block + MAX_BLOCK_SIZE)))
-            .unwrap();
-        let (l, r) = (
-            self.static_array[start_block + start_min.inblock_index],
-            self.static_array[end_block + end_min.inblock_index],
-        );
-        std::cmp::min(l, r)
+            .and_then(|m| m.get(&Range::new(end_block, end_block + MAX_BLOCK_SIZE)));
+        let lopt = start_min.and_then(|l| Some(self.static_array[start_block + l.inblock_index]));
+        let ropt = end_min.and_then(|r| Some(self.static_array[end_block + r.inblock_index]));
+        if let (Some(l), Some(r)) = (lopt, ropt) {
+            Some(std::cmp::min(l, r))
+        } else {
+            None
+        }
     }
 
     /// Finds and returns the smallest value in the blocks between
@@ -204,10 +204,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
     /// query in O(1) as well
     fn get_intermediate_min(&self, range: Range) -> T {
         let k = Self::get_msb(&self.msb_16, (range.end - range.start) + 1);
-        let summary_answers = self
-            .summary_rmq_sparse_table
-            .get(&(range.start, 1 << k))
-            .unwrap();
+        let summary_answers = self.summary_rmq_sparse_table.get(&(range.start, 1 << k)).unwrap();
         let left = Range::new(range.start, range.start + (1 << k) - 1);
         let right = Range::new(range.end - (1 << k) + 1, range.end);
         let left_min = summary_answers.get(&left).unwrap().base_index;
@@ -216,7 +213,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
     }
 
     /// Finds the index of the most significant bit in the given number.
-    /// n is assumed to be a 64 bit array.
+    /// n is assumed to be a 64 bit unsigned integer.
     fn get_msb(lookup_16: &[u8], n: usize) -> usize {
         debug_assert!(n != 0);
         let mask = 0b1111_1111_1111_1111;
@@ -265,7 +262,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
     }
 
     /// For each index i, compute RMQ for ranges starting at i of
-    /// size 1, 2, 4, 8, 16, …, 2k as long as they fit in the array.
+    /// size 1, 2, 4, 8, 16, …, 2^k as long as they fit in the array.
     /// For each array element, we compute lg n ranges. Therefore,
     /// the total cost of the procedure is O(n lg n)
     pub fn compute_sparse_table(minimums: &Vec<T>) -> SparseTable {
@@ -349,8 +346,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
                     None => break,
                     Some(&top_node_index) => {
                         if static_array[top_node_index] < static_array[i] {
-                            cartesian_tree[top_node_index - block_range.start]
-                                .index_of_right_child = Some(i);
+                            cartesian_tree[top_node_index - block_range.start].index_of_right_child = Some(i);
                             break;
                         }
                         last_popped = stack.pop_front();
@@ -381,15 +377,14 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
         } else {
             &static_array[range.start..]
         };
-        let inblock_min_idx = cur_block
-            .iter()
-            .enumerate()
-            .fold(0, |cur_min_idx, (cur_idx, &x)| {
-                match x.cmp(&cur_block[cur_min_idx]) {
+        let inblock_min_idx =
+            cur_block
+                .iter()
+                .enumerate()
+                .fold(0, |cur_min_idx, (cur_idx, &x)| match x.cmp(&cur_block[cur_min_idx]) {
                     std::cmp::Ordering::Less => cur_idx,
                     _ => cur_min_idx,
-                }
-            });
+                });
         range.start + inblock_min_idx
     }
 
@@ -407,10 +402,7 @@ impl<T: Ord + Copy> FischerHeunRMQ<T> {
             for end_index in start_index..=j {
                 if start_index == end_index {
                     // RMQ(i, i) = i
-                    all_range_answers.insert(
-                        Range::new(start_index, end_index),
-                        InBlockOffset::new(i, start_index),
-                    );
+                    all_range_answers.insert(Range::new(start_index, end_index), InBlockOffset::new(i, start_index));
                 } else {
                     let prev_range = Range::new(start_index, end_index - 1);
                     let cur_range = Range::new(start_index, end_index);
@@ -498,12 +490,12 @@ mod test {
         todo!()
     }
 
-    #[test]
-    fn cartesian_tree() {
-        use super::{FischerHeunRMQ, Range};
-        let v = vec![2, 32, 45, 64, 21, 78, 36, 27, 8, 21, 1, 34, 43];
-        todo!()
-    }
+    // #[test]
+    // fn cartesian_tree() {
+    //     use super::{FischerHeunRMQ, Range};
+    //     let v = vec![2, 32, 45, 64, 21, 78, 36, 27, 8, 21, 1, 34, 43];
+    //     todo!()
+    // }
 
     #[test]
     fn compute_cached_dense() {
