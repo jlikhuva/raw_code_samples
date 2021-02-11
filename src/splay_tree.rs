@@ -462,6 +462,26 @@ impl<K: Ord, V> SplayTree<K, V> {
         //         or parent pointers.
         let x_left_idx = nodes[x_idx].left.unwrap();
         Self::swap_entries(nodes, x_idx, x_left_idx);
+
+        // Keep in mind that swapping nodes takes the subtrees with it
+        // Whereas swapping entries does not modify the tree structure.
+
+        // Step 2: We now operate on the children of `x_left_idx`
+        //         Either one, or both, of these kids could be
+        //         `None`. We want to swap the nodes, not the entries,
+        //         the nodes themselves.
+        // TODO: x_left.swap(right_child, left_child)
+
+        // Step 3: We now want to move the right child of x_left
+        //         (which was previously the left child of x_left)
+        //         to become the right child of x_idx. Since these
+        //         two nodes do not share a parent, we have to also
+        //         update their parent pointers. Note that we do not
+        //         need to tell their parents anything
+        // TODO: x_right.swap_with(x_left.right)
+
+        // Step 4: This is the final step. We want to switch the left child
+        // of x with the right child of x. To do so, we simply swap nodes
     }
 
     /// We are give  a node `y` which is the root of some sub-tree and we would

@@ -63,7 +63,7 @@ fn randomized_select<T: PartialOrd>(elements: &mut Vec<T>, range: Range, i: usiz
 /// partitions. Note that the pivot element is in the `less_than` range.
 ///
 pub fn randomized_partition<T: PartialOrd>(elements: &mut Vec<T>, range: Range) -> RangeTuple {
-    let pivot = thread_rng().gen_range(range.0, range.1 + 1);
+    let pivot = thread_rng().gen_range(range.0..=range.1 + 1);
     partition(elements, pivot, range)
 }
 

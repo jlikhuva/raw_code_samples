@@ -118,7 +118,7 @@ fn binary_addition(A: Vec<usize>, B: Vec<usize>) -> Vec<usize> {
 /// constant, O(1) space.
 pub fn randomize_in_place<T>(items: &mut Vec<T>) {
     for i in 0..items.len() {
-        let random_index = thread_rng().gen_range(i, items.len());
+        let random_index = thread_rng().gen_range(i..=items.len());
         items.swap(i, random_index);
     }
 }

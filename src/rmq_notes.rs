@@ -331,7 +331,7 @@ fn median_by_sorting() {
 }
 
 /// The abstraction for a single block.
-#[derive(Debug, Eq, Hash)]
+#[derive(Debug, Eq, Hash, Clone)]
 pub struct RMQBlock<'a, T: Ord> {
     /// The starting index. This is 0-indexed and should be
     /// less than or equal to the end_idx
@@ -343,7 +343,7 @@ pub struct RMQBlock<'a, T: Ord> {
     end_idx: usize,
 
     /// The index of the median value in the given range. To move from this
-    /// index to an indx in the underlying, we simply calculate
+    /// index to an idx in the underlying, we simply calculate
     /// `start_idx + median_idx`
     min_idx: usize,
 
@@ -826,7 +826,7 @@ pub struct SparseTableIdx {
 
 type DenseTable<'a, T> = HashMap<RMQRange<'a, T>, RMQResult<'a, T>>;
 
-/// All structures capable of answeing range min queries should
+/// All structures capable of answering range min queries should
 /// expose the solve method.
 pub trait RMQSolver<'a, T: Ord> {
     fn solve(&self, range: &RMQRange<'a, T>) -> RMQResult<T>;
@@ -1017,6 +1017,7 @@ impl<'a, T: Ord + Eq + Hash> RMQSolver<'a, T> for SparseTableSolver<'a, T> {
 }
 
 /// The primary solvers available.
+#[derive(Debug)]
 pub enum RMQSolverKind {
     ScanningSolver,
     DenseTableSolver,
@@ -1028,7 +1029,7 @@ struct Block<'a, T> {
     end_idx: usize,
     values: &'a [T],
 }
-
+type BlockLevelSolvers<'a, T> = HashMap<RMQBlock<'a, T>, Box<dyn RMQSolver<'a, T>>>;
 /// Since we unified our various solve, we can succinctly represent
 /// a solver that follows the method of four russians scheme.
 /// Notice how we allow one to set the block_size, and solvers
@@ -1038,20 +1039,60 @@ pub struct FourRussiansRMQ<'a, T: Ord> {
     static_array: &'a [T],
 
     /// As discussed already, block decomposition is at the
-    /// heart of the method of four russians. We thus
-    /// allow the client to set how large a single block should be
+    /// heart of the method of four russians. This
+    /// fields keeps track of all the blocks
+    blocks: Vec<RMQBlock<'a, T>>,
+
+    /// The size of each block. The last block may be smaller
+    /// than this
     block_size: usize,
 
     /// We call the solve method of this object when we want to
     /// answer an `rmq` query over the macro array
-    macro_level_solver: Box<dyn RMQSolver<'a, RMQBlock<'a, T>>>,
+    macro_level_solver: Box<dyn RMQSolver<'a, RMQBlock<'a, T>> + 'a>,
 
     /// We call the solve method of this object when we want to
     /// answer an `rmq` query over a single block (ie a micro array)
     block_level_solvers: BlockLevelSolvers<'a, T>,
 }
 
-type BlockLevelSolvers<'a, T> = HashMap<RMQBlock<'a, T>, Box<dyn RMQSolver<'a, T>>>;
+#[derive(Debug, Default)]
+pub struct FourRussiansRMQBuilder<'a, T: Ord + Default> {
+    static_array: Option<&'a [T]>,
+    block_size: Option<usize>,
+    macro_solver: Option<RMQSolverKind>,
+    micro_solver: Option<RMQSolverKind>,
+}
+
+impl<'a, T: Ord + Default> FourRussiansRMQBuilder<'a, T> {
+    pub fn new() -> Self {
+        FourRussiansRMQBuilder::default()
+    }
+
+    pub fn with_static_array(mut self, array: &'a [T]) -> Self {
+        self.static_array = Some(array);
+        self
+    }
+
+    pub fn with_block_size(mut self, b: usize) -> Self {
+        self.block_size = Some(b);
+        self
+    }
+
+    pub fn with_macro_solver(mut self, macro_solver: RMQSolverKind) -> Self {
+        self.macro_solver = Some(macro_solver);
+        self
+    }
+
+    pub fn with_micro_solver(mut self, micro_solver: RMQSolverKind) -> Self {
+        self.micro_solver = Some(micro_solver);
+        self
+    }
+
+    pub fn build(mut self) -> FourRussiansRMQ<'a, T> {
+        todo!()
+    }
+}
 
 impl<'a, T: Ord> PartialOrd for RMQBlock<'a, T> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
@@ -1082,32 +1123,29 @@ impl<'a, T: Ord + Hash> FourRussiansRMQ<'a, T> {
         macro_solver: RMQSolverKind,
         micro_solver: RMQSolverKind,
     ) -> Self {
-        let blocks = Self::create_blocks(static_array, block_size);
-        let macro_level_solver = Self::create_macro_solver(blocks, macro_solver);
+        let blocks = {
+            let mut blocks = Vec::<RMQBlock<T>>::with_capacity(static_array.len() / block_size);
+            for start_idx in (0..static_array.len()).step_by(block_size) {
+                let end_idx = (start_idx + block_size) - 1;
+                let block = &static_array[start_idx..=end_idx];
+                let rmq_res = get_min_by_scanning(block);
+                blocks.push((start_idx, end_idx, rmq_res).into())
+            }
+            blocks
+        };
+        let macro_level_solver: Box<dyn RMQSolver<'_, RMQBlock<'_, T>>> = match macro_solver {
+            RMQSolverKind::ScanningSolver => Box::new(ScanningSolver::new(&blocks)),
+            RMQSolverKind::DenseTableSolver => Box::new(DenseTableSolver::new(&blocks)),
+            RMQSolverKind::SparseTableSolver => Box::new(SparseTableSolver::new(&blocks)),
+        };
         let block_level_solvers = Self::create_micro_solvers(static_array, block_size, micro_solver);
-        FourRussiansRMQ {
-            static_array,
-            block_size,
-            macro_level_solver,
-            block_level_solvers,
-        }
-    }
-
-    fn create_blocks(array: &[T], b: usize) -> Vec<RMQBlock<'_, T>> {
-        let mut blocks = Vec::<RMQBlock<T>>::with_capacity(array.len() / b);
-        for start_idx in (0..array.len()).step_by(b) {
-            let end_idx = (start_idx + b) - 1;
-            let block = array[start_idx..=end_idx].as_ref();
-            let rmq_res = get_min_by_scanning(block);
-            blocks.push((start_idx, end_idx, rmq_res).into())
-        }
-        blocks
-    }
-
-    fn create_macro_solver(
-        array: Vec<RMQBlock<'a, T>>,
-        kind: RMQSolverKind,
-    ) -> Box<dyn RMQSolver<'_, RMQBlock<'_, T>>> {
+        // FourRussiansRMQ {
+        //     blocks,
+        //     block_size,
+        //     static_array,
+        //     macro_level_solver,
+        //     block_level_solvers,
+        // }
         todo!()
     }
 
@@ -1145,6 +1183,8 @@ impl Bucket {
         self.offset_from_end += 1;
     }
 
+    /// Put the provided lms_suffix at its  correct position within
+    /// a bucket
     fn insert_lms_suffix(&mut self, suffix: &Suffix, sa: &mut Vec<SuffixIndex>) {
         sa[self.end.0 - self.lms_offset_from_end] = suffix.start.clone();
         self.lms_offset_from_end += 1;
@@ -1256,7 +1296,7 @@ impl<'a, T: Ord> std::ops::IndexMut<CartesianNodeIdx> for Vec<CartesianTreeNode<
 }
 /// A cartesian tree is a heap ordered binary tree
 /// derived from some underlying array. An in-order
-/// traversal of the tree yields the underlyng tree.
+/// traversal of the tree yields the underlying tree.
 #[derive(Debug)]
 struct CartesianTree<'a, T: Ord> {
     nodes: Vec<CartesianTreeNode<'a, T>>,
@@ -1387,7 +1427,7 @@ impl<'a, T: Ord> CartesianTree<'a, T> {
     /// value only makes sense when the underlying array is small.
     /// More specifically, this procedure assumes that the underlying
     /// array has at most 32 items. This makes sense in our context
-    /// since we're mostly intersted in the cartesian tree numbers
+    /// since we're mostly interested in the cartesian tree numbers
     /// of RMQ blocks
     fn cartesian_tree_number(&self) -> u64 {
         let mut number = 0;

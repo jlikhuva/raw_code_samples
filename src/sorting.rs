@@ -231,7 +231,7 @@ pub type RangeTuple = (Range, Range);
 /// Randomized quick sort
 pub fn quick_sort<T: PartialEq + PartialOrd + std::fmt::Debug>(a: &mut Vec<T>, range: Range) {
     if range.0 < range.1 {
-        let pivot = thread_rng().gen_range(range.0, range.1 + 1);
+        let pivot = thread_rng().gen_range(range.0..=range.1 + 1);
         let (left_range, right_range) = partition(a, pivot, range);
         println!("{:?}, {:?}", left_range, right_range);
         println!("\t {:?}", a);
@@ -438,9 +438,9 @@ mod test {
         let mut dates = Vec::with_capacity(10);
         let earliest_year = 1900;
         for _ in 0..10 {
-            let day = thread_rng().gen_range(1, 31);
-            let month = thread_rng().gen_range(1, 12);
-            let year = thread_rng().gen_range(earliest_year, 2100);
+            let day = thread_rng().gen_range(1..=31);
+            let month = thread_rng().gen_range(1..=12);
+            let year = thread_rng().gen_range(earliest_year..=2100);
             dates.push(super::Date {
                 earliest_year,
                 day,
