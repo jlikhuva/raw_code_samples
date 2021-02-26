@@ -1,6 +1,8 @@
 //! How do we find the origin of replication?
 pub mod ori {
     use std::{collections::BTreeMap, usize};
+
+    use crate::rmq_notes::{make_lcp_by_kasai, SuffixArray};
     /// Counts and returns the number of times `pattern`
     /// appears in `str`, The runtime of this procedure is
     /// O(M * N) where `M = s.len()` and `N = pattern.len()`
@@ -67,27 +69,12 @@ pub mod ori {
     /// an O(|s| lg |s|) procedure.
     pub fn find_all_occurrences(s: &str, pattern: &str) -> Vec<usize> {
         let mut locations = Vec::new();
-        // 1. Create the suffix array by sorting. -- n lg n
-        let mut sa = Vec::with_capacity(s.len());
-        for i in 0..s.len() {
-            sa.push((i, &s[i..]))
-        }
-        sa.sort_by_key(|(_, suffix)| *suffix);
+        let sa = SuffixArray::make_sa_naive(s);
+        let lcp = make_lcp_by_kasai(s, &sa);
 
         // 2. Do a binary search to find an index within the matching region -- ln g
-        let pl = pattern.len();
-        let search_res = sa.binary_search_by(|(_, suffix)| pattern.cmp(&suffix[..pl]));
-        match search_res {
-            Err(_) => locations,
-            Ok(idx_in_bucket) => {
-                // 3. Do a two linear scans: one to the left, another to the right.
-                //    This is necessary because we can have multiple matches
-                //    and binary search will return any of them, not the first one
-                locations.push(sa[idx_in_bucket].0);
-                // TODO
-                locations
-            }
-        }
+        // todo!();
+        locations
     }
 
     /// Finds all the distinct kmers that form (interval_size, t) clumps in genome.
@@ -184,7 +171,7 @@ mod test_ori {
 
     #[test]
     fn find_all_occurrences() {
-        let  s = "panamabanana$";
+        let s = "panamabanana$";
         let p = "ana";
         let _ = ori::find_all_occurrences(s, p);
     }
@@ -196,6 +183,20 @@ mod genome_assembly {
     /// A k-mer is simply a string of length k
     #[derive(Debug)]
     pub struct KMer(String);
+
+    impl From<String> for KMer {
+        fn from(s: String) -> Self {
+            KMer(s)
+        }
+    }
+
+    impl KMer {
+        pub fn len(&self) -> usize {
+            self.0.len()
+        }
+
+        // TODO: Impl slicing for KMer
+    }
 
     #[derive(Debug)]
     pub struct KMerComposition {

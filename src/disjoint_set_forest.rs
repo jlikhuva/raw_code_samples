@@ -7,7 +7,7 @@
 
 use std::marker::PhantomData;
 
-/// A single node in the disjoit set forest
+/// A single node in the disjoint set forest
 #[derive(Debug, Eq, PartialEq)]
 pub struct DSFNode<T: PartialEq> {
     /// The payload stored at this node. This is a unique

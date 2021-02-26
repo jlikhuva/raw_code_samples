@@ -49,7 +49,7 @@ pub struct Acceptor {
     ///
     /// Note that because the current implementation only has
     /// acceptors with capacity=1, we could forego the heap and use
-    /// a sinple string to keep track.
+    /// a simple string to keep track.
     provisional_engagements: BinaryHeap<EngagementTuple>,
 }
 
@@ -112,7 +112,7 @@ pub struct Proposer<'gale_shapely> {
 }
 
 impl<'gale_shapely> Proposer<'gale_shapely> {
-    /// Propose to the next acceptor in the prefrence list
+    /// Propose to the next acceptor in the preference list
     pub fn propose(&mut self, acceptors: &mut HashMap<String, Acceptor>) -> ProposalResult {
         let proposal_result = acceptors
             .get_mut(&self.preference_list[self.current])
@@ -132,7 +132,7 @@ impl<'gale_shapely> Proposer<'gale_shapely> {
 type StableMatchings = HashMap<String, String>;
 
 #[derive(Debug)]
-pub struct DefferedAcceptance<'gale_shapely> {
+pub struct DeferredAcceptance<'gale_shapely> {
     proposers: HashMap<ProposerId, Proposer<'gale_shapely>>,
     acceptors: HashMap<AcceptorId, Acceptor>,
 
@@ -140,7 +140,7 @@ pub struct DefferedAcceptance<'gale_shapely> {
     unmatched_proposers: HashSet<ProposerId>,
 }
 
-impl<'gale_shapely> DefferedAcceptance<'gale_shapely> {
+impl<'gale_shapely> DeferredAcceptance<'gale_shapely> {
     /// Create a new instance of the Gale-Shapely procedure
     /// proposers is the set of all string IDs of proposers in the market
     /// acceptors is the set of all string IDs of acceptors in the markets
@@ -151,7 +151,7 @@ impl<'gale_shapely> DefferedAcceptance<'gale_shapely> {
     ///
     /// Note that the way we consume inputs could be improved by taking advantage of
     /// Rust's type system. In particular, currently we have to manually check that
-    /// a proposer can only rank an aceptor and vice versa. Using the type system,
+    /// a proposer can only rank an acceptor and vice versa. Using the type system,
     /// this could be checked by the compiler.
     pub fn new(
         proposer_ids: HashSet<ProposerId>,
@@ -160,7 +160,7 @@ impl<'gale_shapely> DefferedAcceptance<'gale_shapely> {
     ) -> Self {
         let proposers = Self::create_proposers(&proposer_ids, rankings);
         let acceptors = Self::create_acceptors(&acceptor_ids, rankings);
-        DefferedAcceptance {
+        DeferredAcceptance {
             proposers,
             acceptors,
             unmatched_proposers: proposer_ids,
@@ -276,7 +276,7 @@ mod test {
         for a in &acceptors {
             rankings.insert(a.to_string(), random_permutation(&proposers));
         }
-        let mut procedure = super::DefferedAcceptance::new(proposers, acceptors, &rankings);
+        let mut procedure = super::DeferredAcceptance::new(proposers, acceptors, &rankings);
         let stable_match = procedure.run();
         println!("{:?}", stable_match)
     }

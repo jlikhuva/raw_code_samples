@@ -512,7 +512,7 @@ impl<'a> SuffixArray<'a> {
     }
 }
 
-fn make_lcp_by_scanning(sa: &SuffixArray) -> Vec<LCPHeight> {
+pub fn make_lcp_by_scanning(sa: &SuffixArray) -> Vec<LCPHeight> {
     let mut lcp_len_array = Vec::with_capacity(sa.len());
     for i in 1..sa.len() {
         let prev_sa_idx = SuffixArrayIndex(i - 1);
@@ -566,7 +566,7 @@ fn lcp_naive() {
 
 /// Computes the lcp array in O(n) using Kasai's algorithm. This procedure assumes that
 /// the sentinel character has been appended onto `s`.
-fn make_lcp_by_kasai(s: &str, sa: &SuffixArray) -> Vec<LCPHeight> {
+pub fn make_lcp_by_kasai(s: &str, sa: &SuffixArray) -> Vec<LCPHeight> {
     let s_ascii = s.as_bytes();
     let mut lcp_array = Vec::with_capacity(s.len());
     // We need a quick way to move from the index of the suffix in the

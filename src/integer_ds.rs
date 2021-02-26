@@ -209,7 +209,7 @@ mod wlp {
             // Perform the parallel comparison
             let tiled_query = Self::parallel_tile_128(query);
             let packed_keys = 0b000000001_000000010_000000100_000001000_000010000_000100000_001000000_010000000u128;
-            let mut difference =  tiled_query - packed_keys;
+            let mut difference = tiled_query - packed_keys;
 
             // Isolate the spacer sentinel bits
             let sentinel_mask = 0b100000000_100000000_100000000_100000000_100000000_100000000_100000000_100000000u128;

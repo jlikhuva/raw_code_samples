@@ -1,18 +1,18 @@
 use bitvec::prelude::{BitVec, LocalBits};
 use core::hash::BuildHasher;
-use std::hash::Hasher;
+use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
 use twox_hash::RandomXxHashBuilder64;
 
-unsafe fn as_u8_slice<T: Sized>(p: &T) -> &[u8] {
-    std::slice::from_raw_parts((p as *const T) as *const u8, std::mem::size_of::<T>())
+fn as_u8_slice<T: Sized>(p: &T) -> &[u8] {
+    unsafe { std::slice::from_raw_parts((p as *const T) as *const u8, std::mem::size_of::<T>()) }
 }
 pub struct BloomFilter<T> {
     buckets: BitVec,
     hash_functions: Vec<RandomXxHashBuilder64>,
     _marker: PhantomData<T>,
 }
-impl<T> BloomFilter<T> {
+impl<T: Hash> BloomFilter<T> {
     pub fn new(num_buckets: usize, num_hash_funcs: usize) -> Self {
         let mut buckets = BitVec::<LocalBits, usize>::with_capacity(num_buckets);
         let mut hash_functions = Vec::new();
@@ -32,9 +32,7 @@ impl<T> BloomFilter<T> {
     pub fn insert(&mut self, item: T) {
         for f in &mut self.hash_functions {
             let mut hasher = f.build_hasher();
-            unsafe {
-                hasher.write(as_u8_slice(&item));
-            }
+            item.hash(&mut hasher);
             let idx = hasher.finish() % self.buckets.len() as u64;
             self.buckets.set(idx as usize, true);
         }
@@ -43,9 +41,7 @@ impl<T> BloomFilter<T> {
     pub fn contains(&mut self, item: T) -> bool {
         for f in &mut self.hash_functions {
             let mut hasher = f.build_hasher();
-            unsafe {
-                hasher.write(as_u8_slice(&item));
-            }
+            hasher.write(as_u8_slice(&item));
             let idx = hasher.finish() % self.buckets.len() as u64;
             if !self.buckets.get(idx as usize).unwrap() {
                 return false;
@@ -78,26 +74,22 @@ impl<T> CountMinSketch<T> {
 
     pub fn inc(&mut self, item: T) {
         for (i, f) in self.hash_functions.iter().enumerate() {
-            unsafe {
-                let mut hasher = f.build_hasher();
-                hasher.write(as_u8_slice(&item));
-                let idx = hasher.finish() % self.sketch_matrix[0].len() as u64;
-                self.sketch_matrix[i][idx as usize] += 1;
-            }
+            let mut hasher = f.build_hasher();
+            hasher.write(as_u8_slice(&item));
+            let idx = hasher.finish() % self.sketch_matrix[0].len() as u64;
+            self.sketch_matrix[i][idx as usize] += 1;
         }
     }
 
     pub fn count(&self, item: T) -> u64 {
         let mut cur_min = u64::MIN;
         for (i, f) in self.hash_functions.iter().enumerate() {
-            unsafe {
-                let mut hasher = f.build_hasher();
-                hasher.write(as_u8_slice(&item));
-                let idx = hasher.finish() % self.sketch_matrix[0].len() as u64;
-                let cur_value = self.sketch_matrix[i][idx as usize];
-                if cur_value < cur_min {
-                    cur_min = cur_value;
-                }
+            let mut hasher = f.build_hasher();
+            hasher.write(as_u8_slice(&item));
+            let idx = hasher.finish() % self.sketch_matrix[0].len() as u64;
+            let cur_value = self.sketch_matrix[i][idx as usize];
+            if cur_value < cur_min {
+                cur_min = cur_value;
             }
         }
         cur_min
@@ -117,9 +109,8 @@ mod test {
             _x: "Joseph".to_string(),
             _y: 33,
         };
-        unsafe {
-            let bytes = as_u8_slice(&p);
-            println!("{:?}", bytes)
-        }
+
+        let bytes = as_u8_slice(&p);
+        println!("{:?}", bytes)
     }
 }

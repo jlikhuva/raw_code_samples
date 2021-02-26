@@ -1,3 +1,9 @@
+use std::{
+    collections::hash_map::RandomState,
+    hash::{BuildHasher, Hash, Hasher},
+    marker::PhantomData,
+};
+
 use rand::{thread_rng, Rng};
 
 /// A sampler will be anything that can observe a possibly infinite
@@ -75,4 +81,84 @@ fn test_reservoir_sampler() {
         sampler.observe(i);
     }
     println!("{:?}", sampler.sample())
+}
+
+/// Indicates that the filter has probably seen a given
+/// item before
+pub struct ProbablyYes;
+/// indicates that a filter hasn't seen a given item before.
+pub struct DefinitelyNot;
+/// A filter will be any object that is able to observe a possibly
+/// infinite stream of items and, at any point, answer if a given
+/// item has been seen before
+pub trait Filter<T> {
+    /// We observe each item as it comes in. We do not use terminology such as
+    /// `insert` because we do not store any of the items.
+    fn observe(&mut self, item: T);
+
+    /// Produce a random uniform sample of the all the items that
+    /// have been observed so far.
+    fn has_been_observed_before(&self, item: &T) -> Result<ProbablyYes, DefinitelyNot>;
+}
+
+#[derive(Debug)]
+pub struct BloomFilter<T: Hash> {
+    /// The bit vector
+    buckets: Vec<bool>,
+
+    /// The list of hash functions
+    hash_functions: Vec<RandomState>,
+
+    _marker: PhantomData<T>,
+}
+
+impl<T: Hash> BloomFilter<T> {
+    /// Creates a new bloom filter `m` buckets and `k` hash functions.
+    /// Each hash function is randomly initialized and is independent
+    /// of the other hash functions
+    pub fn new(m: usize, k: usize) -> Self {
+        let mut buckets = Vec::with_capacity(m);
+        for _ in 0..m {
+            buckets.push(false);
+        }
+        let mut hash_functions = Vec::with_capacity(k);
+        for _ in 0..k {
+            hash_functions.push(RandomState::new());
+        }
+
+        BloomFilter {
+            buckets,
+            hash_functions,
+            _marker: PhantomData,
+        }
+    }
+
+    /// ..
+    fn get_index(&self, state: &RandomState, item: &T) -> usize {
+        let mut hasher = state.build_hasher();
+        item.hash(&mut hasher);
+        let idx = hasher.finish() % self.buckets.len() as u64;
+        idx as usize
+    }
+}
+
+impl<T: Hash> Filter<T> for BloomFilter<T> {
+    /// ...
+    fn observe(&mut self, item: T) {
+        for state in &self.hash_functions {
+            let index = self.get_index(state, &item);
+            self.buckets[index] = true;
+        }
+    }
+
+    /// ...
+    fn has_been_observed_before(&self, item: &T) -> Result<ProbablyYes, DefinitelyNot> {
+        for state in &self.hash_functions {
+            let index = self.get_index(state, &item);
+            if !self.buckets[index] {
+                return Err(DefinitelyNot);
+            }
+        }
+        Ok(ProbablyYes)
+    }
 }

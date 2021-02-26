@@ -6,6 +6,7 @@ pub mod cuckoo_hash_table;
 pub mod disjoint_set_forest;
 pub mod dp;
 pub mod geometry;
+pub mod graph_notes;
 pub mod graphs;
 pub mod greedy;
 pub mod heap;
