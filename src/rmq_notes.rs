@@ -503,7 +503,7 @@ impl From<(SuffixIndex, SuffixIndex, usize)> for LCPHeight {
 }
 
 impl<'a> SuffixArray<'a> {
-    /// Retrieve the index of the siffic array stored at this location
+    /// Retrieve the index of the siffix array stored at this location
     /// in the suffix array. Put another way, we retrieve the id
     /// of the (idx + 1) smallest suffix in the string
     pub fn get_suffix_idx_at(&self, idx: usize) -> SuffixIndex {

@@ -7,7 +7,7 @@
 //! to index H1 If the item we're looking for is not there, we apply h2
 //! and look in H2. If the item is not at both positions, then we conclude t
 //! hat the item is not in the hash table. Therefore, search is `O(1)` since
-//! we only need to look at two slots at most. Similary deletion from a
+//! we only need to look at two slots at most. Similarly deletion from a
 //! cuckoo hash table is `O(1)` since it relies on search.
 //! Insertion into a cuckoo hash table is interesting (it's also how this method gets its name).  
 //! To insert `x`, we begin by trying to place it in `H_1` at index `i = h_1(x)`.
@@ -30,8 +30,8 @@
 //! and that the expected number of rehashes for any insertion is `O(1/m^2)`. Therefore,
 //! cuckoo hash maps give us worst case constant lookups and insertion and expected, amortized constant insertion
 //!
-//! Note that some documentation and doctests of the fucntions is heavily borrowed from std::collections::HashMaps's
-//! documentation. This serves two main pursposes. First, I was aiming for API parity so it helps
+//! Note that some documentation and doctests of the functions is heavily borrowed from std::collections::HashMaps's
+//! documentation. This serves two main purposes. First, I was aiming for API parity so it helps
 //! to use the same doctests. Second,
 
 use fxhash::FxHashMap;

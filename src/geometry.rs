@@ -22,8 +22,8 @@ pub enum Turn {
     /// segment, take a left turn at the hared point
     Left,
 
-    /// This means that the two line segments are coliners.
-    /// Therefore, when a person arives at the shared point,
+    /// This means that the two line segments are colinear.
+    /// Therefore, when a person arrives at the shared point,
     /// they simply continue walking straight
     NoTurn,
 
@@ -34,7 +34,7 @@ pub enum Turn {
 }
 
 /// The available algorithms for computing the convex hull
-/// of a set of 2-dimesional points. Useful for benchmarking
+/// of a set of 2-dimensional points. Useful for benchmarking
 #[derive(Debug)]
 pub enum ConvexHullMethod {
     Incremental,
@@ -88,7 +88,7 @@ pub struct LineSegment<T: Num> {
 
 /// A collection of line segments. Such an abstraction is useful
 /// when we want to ask queries that operate on some group of line
-/// segements
+/// segments
 #[derive(Debug)]
 pub struct SegmentCollection<T: Num>(Vec<LineSegment<T>>);
 
@@ -126,7 +126,7 @@ impl<T: Num> PointCollection<T> {
         todo!()
     }
 
-    /// Compute the conveh hull for the points in this collection using
+    /// Compute the convex hull for the points in this collection using
     /// the stated algorithm
     pub fn convex_hull(&self, method: ConvexHullMethod) -> PointCollection<T> {
         todo!()

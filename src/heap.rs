@@ -5,7 +5,7 @@
 /// heap array, but not in the heap
 /// (for instance, when doing extract operation we move deleted
 /// items to the end of the array and decrement heap_size in order to ignore them).
-/// The max heap peroperty states that the children must always be greater than
+/// The max heap property states that the children must always be greater than
 /// the parent.
 #[derive(Debug)]
 pub struct MaxHeap<T>

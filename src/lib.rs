@@ -1,3 +1,4 @@
+#![feature(total_cmp)]
 pub mod algebra;
 pub mod binomial_heap;
 pub mod bio;
@@ -11,6 +12,7 @@ pub mod graphs;
 pub mod greedy;
 pub mod heap;
 pub mod integer_ds;
+pub mod mock;
 pub mod prep;
 pub mod red_black_tree;
 pub mod rmq;

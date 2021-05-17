@@ -162,3 +162,49 @@ impl<T: Hash> Filter<T> for BloomFilter<T> {
         Ok(ProbablyYes)
     }
 }
+
+#[derive(Debug)]
+pub struct CountMinSketch<T: Hash, const M: usize, const N: usize> {
+    /// A count sketch is defined by `N` hash functions
+    /// and `M` bucket groups. Each of the `N` hash functions
+    /// maps an item into a single slot in a corresponding bucket group
+    sketch_matrix: [[u64; M]; N],
+
+    ///
+    hash_functions: [RandomState; N],
+
+    /// As with the Bloom Filter, we'd like to
+    _marker: PhantomData<T>,
+}
+
+impl<T: Hash, const M: usize, const N: usize> CountMinSketch<T, M, N> {
+    /// ...
+    pub fn inc(&mut self, item: &T) {
+        for (i, state) in self.hash_functions.iter().enumerate() {
+            let idx = self.get_index(state, item);
+            self.sketch_matrix[i][idx] += 1;
+        }
+    }
+
+    /// ...
+    pub fn count(&mut self, item: &T) -> u64 {
+        let mut cur_min = u64::MIN;
+        for (i, state) in self.hash_functions.iter().enumerate() {
+            let idx = self.get_index(state, item);
+            let cur_value = self.sketch_matrix[i][idx];
+            if cur_value < cur_min {
+                cur_min = cur_value;
+            }
+        }
+        cur_min
+    }
+
+    /// Hashes the given item and maps it to the appropriate index location within
+    /// a single bucket
+    fn get_index(&self, state: &RandomState, item: &T) -> usize {
+        let mut hasher = state.build_hasher();
+        item.hash(&mut hasher);
+        let idx = hasher.finish() % self.sketch_matrix[0].len() as u64;
+        idx as usize
+    }
+}

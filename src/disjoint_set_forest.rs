@@ -74,7 +74,7 @@ impl<T: PartialEq> DSF<T> {
 
     /// Th union operation has two cases. if the roots have unequal rank, we make
     /// the root with lower rank point to the root with the higher rank. The
-    /// ranks, however, do not change. If the roots have equal ranke, we choose one
+    /// ranks, however, do not change. If the roots have equal ranks, we choose one
     /// of the roots as the root of the combined set. We also increase
     /// the rank of the new root by 1.
     pub fn union(&mut self, a: &DSFNodeHandle<T>, b: &DSFNodeHandle<T>) {
