@@ -3,7 +3,7 @@
 //! ## Properties
 //! 1. The balance property which guarantees that the amortized cost of any lookup in the tree is
 //!    at least (lg n)
-//! 2. The entropy peoperty which guarantees that the cost of a lookup is
+//! 2. The entropy property which guarantees that the cost of a lookup is
 //!    less than logarithmic if some elements are more likely to be queried than others.
 //! 3. The Dynamic Finger Property (aka the spatial locality property)
 //! 4. The working set property (aka the temporal locality property)
@@ -53,18 +53,18 @@ pub enum NodeConfig {
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 struct SplayNodeIdx(usize);
 
-// impl From<usize> for SplayNodeIdx {
-//     /// Allows us to quickly construct tree indexes from
-//     /// a raw index
-//     /// # Example
-//     ///
-//     /// ```
-//     /// let idx: SplayNodeIdx = 5.into();
-//     /// ```
-//     fn from(idx: usize) -> Self {
-//         SplayNodeIdx(idx)
-//     }
-// }
+impl From<usize> for SplayNodeIdx {
+    /// Allows us to quickly construct tree indexes from
+    /// a raw index
+    /// # Example
+    ///
+    /// ```
+    /// let idx: SplayNodeIdx = 5.into();
+    /// ```
+    fn from(idx: usize) -> Self {
+        SplayNodeIdx(idx)
+    }
+}
 
 impl<K: Ord, V> std::ops::Index<SplayNodeIdx> for Vec<SplayNode<K, V>> {
     type Output = SplayNode<K, V>;
@@ -122,7 +122,7 @@ struct SplayNode<K: Ord, V> {
 }
 
 impl<K: Ord, V> SplayNode<K, V> {
-    /// Create a new red black tree node with the given entry.
+    /// Create a new splay tree node with the given entry.
     ///
     /// # Example
     /// ```
@@ -225,16 +225,16 @@ impl<K: Ord + Default, V: Default> SplayTree<K, V> {
     /// ```
     ///
     /// ```
-    pub fn succ(&mut self, k: K) -> Option<&Entry<K, V>> {
+    pub fn successor(&mut self, k: K) -> Option<&Entry<K, V>> {
         match &mut self.elements {
             None => None,
             Some(nodes) => Self::get_helper(nodes, self.root, k).and_then(move |key_idx| {
                 let right = nodes[key_idx].right;
-                let succ = match right {
+                let successor = match right {
                     None => Self::lla(nodes, Some(key_idx)),
                     Some(right_idx) => Self::min_helper(nodes, Some(right_idx)),
                 };
-                succ.and_then(move |succ_idx| Some(&nodes[succ_idx].entry))
+                successor.and_then(move |succ_idx| Some(&nodes[succ_idx].entry))
             }),
         }
     }

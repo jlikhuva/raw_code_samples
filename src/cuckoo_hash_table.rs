@@ -24,7 +24,7 @@
 //! stabilize out of our ping-pong loop. When that happens, we rehash everything with
 //! two new hash functions. We may have to rehash multiple times. For the runtime and
 //! correctness analysis of cuckoo hashing,
-//! check out [these slides from Keith Schwarz]
+//! check out [these slides from Keith Schwartz]
 //! (http://web.stanford.edu/class/archive/cs/cs166/cs166.1196/lectures/13/Small13.pdf).
 //! For now, it suffices to say that the expected cost of an insertion into a cuckoo hash table is `O(1)`
 //! and that the expected number of rehashes for any insertion is `O(1/m^2)`. Therefore,

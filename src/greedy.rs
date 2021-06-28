@@ -7,13 +7,13 @@
 //! Greedy algorithms differ from  DP algorithms discussed in the preceding section in
 //! the way they select the optimal action out of the $$k$$ available choices.
 //! Whereas DP methods fully examine each of the $$k$$ options before selecting one
-//! (that is, they fully expand and evaluate the resultant subproblems),
+//! (that is, they fully expand and evaluate the resultant sub-problems),
 //! greedy algorithms simply pick the action that looks optimal at the moment.
 //! At each step, they make an irrevocable decision and move on to the next step
 //! hoping that the greedy choice will lead to an optimal solution. This makes for
 //! simpler algorithms. The catch is that greedy methods don’t always yield the
 //! optimal solution. Greedy algorithms have a top-down design — we make a choice
-//! and then solve the resultant subproblems. Contrast this with DP methods which
+//! and then solve the resultant sub-problems. Contrast this with DP methods which
 //! always have a bottom up structure (even when implemented recursively with memoization)
 //! Another thing to note is that because greedy algorithms need to access locally optimal
 //! elements, they make extensive use of sorting and heaps.
