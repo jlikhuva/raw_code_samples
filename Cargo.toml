@@ -7,7 +7,7 @@ edition = "2018"
 
 [dependencies]
 rand = "0.8.3"
-bitvec = "0.20"
+bitvec = "0.22.3"
 twox-hash = "1.6.0"
 lazy_static = "1.4.0"
 anyhow = "1.0"

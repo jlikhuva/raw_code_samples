@@ -48,6 +48,8 @@ impl<T: PartialEq> DSFNode<T> {
         }
     }
 }
+
+
 /// A disjoint set forest is a collection of trees.
 /// Only the nodes in a single tree are linked together.
 /// A user interacts with the forest using the nodes
@@ -154,7 +156,7 @@ mod test {
         // Synonyms for bad
         let t6 = forest.make_set("bad");
         let t7 = forest.make_set("schlecht");
-        let t8 = forest.make_set("unpleasany");
+        let t8 = forest.make_set("unpleasant");
         let t9 = forest.make_set("poor");
 
         // Assert Singleton Trees

@@ -1,3 +1,8 @@
+use std::marker::PhantomData;
+
+#[derive(Debug, PartialEq, Eq)]
+pub struct BSTNodeHandle<K, V>(usize, PhantomData<K>, PhantomData<V>);
+
 /// A single node in the tree
 #[derive(Debug)]
 struct BstNode<Key: Ord, Value> {
