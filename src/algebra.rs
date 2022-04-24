@@ -64,7 +64,7 @@ impl GCDRes {
         GCDRes { gcd, x, y }
     }
 }
-/// Extened GCD where in addition to finding the largest
+/// Extended GCD where in addition to finding the largest
 /// common divisor of (a, b), it also finds coefficients
 /// x, y such that gcd(a, b) = a*x + b*y
 fn extended_gcd(args: GCDArgs) -> GCDRes {

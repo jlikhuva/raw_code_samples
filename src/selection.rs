@@ -5,7 +5,7 @@ use rand::{thread_rng, Rng};
 /// a collection of n elements in time linear in the number of
 /// items. An additional optimization can be used to reduce the
 /// number of comparisons needed even further and to find both
-/// extrema simoultaneously. We could iterate over two elements at
+/// extrema simultaneously. We could iterate over two elements at
 /// a time, and keep track of two counters, one for each
 /// extrema. Under this scheme, we can find the extrema using
 /// 3*floor(n/2) comparisons.

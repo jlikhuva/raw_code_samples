@@ -2,12 +2,12 @@
 name = "algo"
 version = "0.1.0"
 authors = ["jlikhuva <jlikhuva@stanford.edu>"]
-edition = "2018"
+edition = "2021"
 
 
 [dependencies]
 rand = "0.8.3"
-bitvec = "0.22.3"
+bitvec = "1.0.0"
 twox-hash = "1.6.0"
 lazy_static = "1.4.0"
 anyhow = "1.0"

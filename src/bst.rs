@@ -103,23 +103,20 @@ impl<Key: Ord, Value> BST<Key, Value> {
                                 self.root_index = elements[delete_idx].left;
                             }
                         } else {
-                            match Self::min_helper(&elements, elements[delete_idx].right) {
-                                None => {} // This won't ever happen. We could use if-let but i like this better
-                                Some(succ_idx) => {
-                                    if elements[succ_idx].parent != delete_idx_option {
-                                        Self::transplant(elements, succ_idx, ChildType::Right);
-                                        elements[succ_idx].right = elements[delete_idx].right;
-                                        let delete_node_right_idx = elements[succ_idx].right;
-                                        elements[delete_node_right_idx.unwrap()].parent = Some(succ_idx);
-                                    }
-                                    // if we are here, then succ_idx is actually delete_idx's right child.
-                                    Self::transplant(elements, delete_idx, ChildType::Right);
-                                    elements[succ_idx].left = elements[delete_idx].left;
-                                    let delete_node_left_idx = elements[succ_idx].left;
-                                    elements[delete_node_left_idx.unwrap()].parent = Some(succ_idx);
-                                    if elements[delete_idx].parent.is_none() {
-                                        self.root_index = Some(succ_idx);
-                                    }
+                            if let Some(succ_idx) = Self::min_helper(&elements, elements[delete_idx].right) {
+                                if elements[succ_idx].parent != delete_idx_option {
+                                    Self::transplant(elements, succ_idx, ChildType::Right);
+                                    elements[succ_idx].right = elements[delete_idx].right;
+                                    let delete_node_right_idx = elements[succ_idx].right;
+                                    elements[delete_node_right_idx.unwrap()].parent = Some(succ_idx);
+                                }
+                                // if we are here, then succ_idx is actually delete_idx's right child.
+                                Self::transplant(elements, delete_idx, ChildType::Right);
+                                elements[succ_idx].left = elements[delete_idx].left;
+                                let delete_node_left_idx = elements[succ_idx].left;
+                                elements[delete_node_left_idx.unwrap()].parent = Some(succ_idx);
+                                if elements[delete_idx].parent.is_none() {
+                                    self.root_index = Some(succ_idx);
                                 }
                             }
                         }
